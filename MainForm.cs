@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Text;
 using System.Windows.Forms;
 
 namespace KeyEventLogger;
@@ -13,6 +14,7 @@ public sealed class MainForm : Form
     private readonly Label _statusLabel = new();
     private readonly Panel _topPanel = new();
     private readonly Button _clearButton = new();
+    private readonly Button _exportButton = new();
     private readonly CheckBox _onlyDownCheckBox = new();
 
     public MainForm()
@@ -53,11 +55,17 @@ public sealed class MainForm : Form
         _clearButton.Size = new Size(100, 28);
         _clearButton.Click += OnClearClick;
 
+        _exportButton.Text = "Dışa Aktar";
+        _exportButton.Location = new Point(116, 10);
+        _exportButton.Size = new Size(110, 28);
+        _exportButton.Click += OnExportClick;
+
         _onlyDownCheckBox.Text = "Yalnızca basılanları kaydet";
         _onlyDownCheckBox.AutoSize = true;
-        _onlyDownCheckBox.Location = new Point(120, 14);
+        _onlyDownCheckBox.Location = new Point(240, 14);
 
         _topPanel.Controls.Add(_clearButton);
+        _topPanel.Controls.Add(_exportButton);
         _topPanel.Controls.Add(_onlyDownCheckBox);
 
         // Kenara yapışan (Dock) kontroller için Fill kontrolü ilk eklenir.
@@ -88,6 +96,37 @@ public sealed class MainForm : Form
         _log.Clear();
         _listView.Items.Clear();
         UpdateStatus();
+    }
+
+    private void OnExportClick(object? sender, EventArgs e)
+    {
+        if (_log.Count == 0)
+        {
+            MessageBox.Show(this, "Dışa aktarılacak kayıt yok.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dialog = new SaveFileDialog
+        {
+            Filter = "Metin dosyası (*.txt)|*.txt",
+            DefaultExt = "txt",
+            FileName = $"key-event-log-{DateTime.Now:yyyyMMdd-HHmmss}.txt"
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            File.WriteAllLines(dialog.FileName, _log.ToTextLines(), Encoding.UTF8);
+            MessageBox.Show(this, $"{_log.Count} kayıt dışa aktarıldı.", "Dışa Aktar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, $"Dosya yazılamadı: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private void OnRecordAdded(KeyEventRecord record)
